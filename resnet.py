@@ -45,27 +45,40 @@ def GenHyperparameters():
 
 # In[13]:
 
-def bn_relu_conv_block(filters,kernel_size,strides,padding):
+def bn_relu_conv_block(filters,kernel_size,strides=(1,1),padding='same'):
     def f(input):
         input = BN()(input)
         input = Activation('relu')(norm)
         return Conv2D(filters = filters,kernel_size=kernel_size,strides=strides,padding=padding)(input)
     return f
 
-def normal_residual_unit(inputs,filter):
-    shortcut = inputs
-    shortcut = bn_relu_conv_block(filter,3,)
+def normal_residual_unit(filter,is_first_block_of_first_layer=False):
+	def f(input):
+
+    	shortcut = inputs
+    	if is_first_block_of_first_layer:
+    		conv1 = Conv2D(filters=filter,kernel_size=(3,3),strides=(1,1),padding='same' )(input)
+    	else:
+    		conv1 = bn_relu_conv_block(filters=filter,kernel_size=(3,3))(input)
+    	conv2 = bn_relu_conv_block(filters = filter,kernel_size=(3,3))(conv1)
+    	shortcut = Conv2D(filters=filter,kernel_size=(3,3))(shortcut)
+    	added = Add()([conv2,shortcut])
+    	return added
+    return f
 
 def bottleneck_residual_unit(filter,is_first_block_of_first_layer=False):
     def f(input):
-
-    shortcut = inputs
-    shortcut = Conv2D(filters=filter,1,padding='same')(shortcut)
-    shortcut = Conv2D(filters=filter,3,padding='same')(shortcut)
-    shortcut = Conv2D(filters=filter*4,1,padding='same')(shortcut)
-    added = Add()([inputs,shortcut])
-
-    return added
+    	shortcut = input
+    	if is_first_block_of_first_layer:
+    		conv_1_1 = Conv2D(filters = filter,kernel_size=1,strides=(1,1),padding='same')(input)
+	    else:
+	    	conv_1_1 = bn_relu_conv_block(filters = filter,kernel_size=(1,1),strides=(1,1),padding='same')(input)
+	    conv_3_3 =  bn_relu_conv_block(filters = filter,kernel_size=(3,3))(conv_1_1)
+	    res = bn_relu_conv_block(filters=filter*4,kernel_size=(1,1))(conv_3_3)
+	    shortcut = Conv2D(filters = filter*4,kernel_size=1)(shortcut)
+	    added = Add()([res,shortcut])
+	    return added
+    return f
 
 
 
@@ -73,34 +86,7 @@ def BuildModel(input_shape,num_outputs,block,structure):
     input = Input(shape = input_shape)
     conv1 = Conv2D(filters=64, kernel_size=(7,7),strides=(2,2))(input)
     pool1 = MaxPooling2D(pool_size=(3,3),strides=(2,2),padding="same")(conv1)
-    def BuildModule(inputs,depth=1,filters=16):
-
-        shortcut = inputs
-        shortcut = Conv2D(filters,1,padding='same')(shortcut)
-        shortcut = Conv2D(filters,3,padding='same')(shortcut)
-        shortcut = Conv2D(filters*4,1,padding='same')(shortcut)
-        added = Add()()
-        out=None
-        for k in range(depth):
-            
-                    
-            if k==depth-1:
-                #inputs = BatchNormalization()(inputs)
-                inputs = Activation('relu')(inputs)
-                inputs = Conv2D(filters,3,padding='same')(inputs)
-                
-                added = Add()([inputs,shortcut])
-                out = MaxPooling2D(strides=(2,2))(added)
-                
-                
-            else:
-                #inputs = BatchNormalization()(inputs)
-                inputs = Activation('relu')(inputs)
-            
-                inputs = Conv2D(filters,3,padding='same')(inputs)
-            
-                
-        return out
+    
 
     filters = hp.filters
     input_flag = True
@@ -130,7 +116,7 @@ N      = 50000
 EPOCHS = 100
 BATCH  = 1000
 TRIALS = 10
-#already = set()
+
 hp = GenHyperparameters()
 
 model = BuildModel(hp)
