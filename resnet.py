@@ -7,55 +7,22 @@
 import numpy as np
 import pandas as pd
 import time
-from keras.utils import np_utils
 from keras.models import Model
-from keras.models import Sequential
-from keras.layers.core import Dense,Activation,Dropout,Flatten
-from keras.layers import Input
+from keras.layers import (
+    Input,
+    Activation,
+    Dense,
+    Flatten
+)
 from keras.layers.convolutional import (
     Conv2D,
     MaxPooling2D,
     AveragePooling2D
 )
-from keras.layers.normalization import BatchNormalization
-from keras.optimizers import Adam
-from keras.callbacks import EarlyStopping,TensorBoard
-
 from keras.layers import Add
+from keras.layers.normalization import BatchNormalization as BN
+from keras.regularizers import l2
 
-
-# In[2]:
-
-
-
-# load CIFAR10 dataset
-print('Loading CIFAR-10 dataset...')
-CIFAR10 = np.load('CIFAR-10_train.npz')
-x_train = CIFAR10['train_images']
-y_train = CIFAR10['train_labels']
-CIFAR10 = np.load('CIFAR-10_test.npz')
-x_test  = CIFAR10['test_images']
-y_test  = CIFAR10['test_labels']
-
-
-# In[3]:
-
-# preprocess CIFAR10 data
-print('Preprocessing CIFAR10 dataset...')
-x_train = x_train.astype('float32')
-x_test  = x_test.astype('float32')
-x_train = (x_train - x_train.mean())/x_train.std()
-x_test  = (x_test - x_test.mean())/x_test.std()
-y_train = np_utils.to_categorical(y_train,10)
-y_test  = np_utils.to_categorical(y_test,10)
-print('    train images tensor:',x_train.shape)
-print('    test  images tensor:',x_test.shape)
-print('    train labels tensor:',y_train.shape)
-print('    test  labels tensor:',y_test.shape)
-print()
-
-
-# In[ ]:
 
 
 
@@ -78,12 +45,41 @@ def GenHyperparameters():
 
 # In[13]:
 
-def BuildModel(hp):
-    
+def bn_relu_conv_block(filters,kernel_size,strides,padding):
+    def f(input):
+        input = BN()(input)
+        input = Activation('relu')(norm)
+        return Conv2D(filters = filters,kernel_size=kernel_size,strides=strides,padding=padding)(input)
+    return f
+
+def normal_residual_unit(inputs,filter):
+    shortcut = inputs
+    shortcut = bn_relu_conv_block(filter,3,)
+
+def bottleneck_residual_unit(filter,is_first_block_of_first_layer=False):
+    def f(input):
+
+    shortcut = inputs
+    shortcut = Conv2D(filters=filter,1,padding='same')(shortcut)
+    shortcut = Conv2D(filters=filter,3,padding='same')(shortcut)
+    shortcut = Conv2D(filters=filter*4,1,padding='same')(shortcut)
+    added = Add()([inputs,shortcut])
+
+    return added
+
+
+
+def BuildModel(input_shape,num_outputs,block,structure):
+    input = Input(shape = input_shape)
+    conv1 = Conv2D(filters=64, kernel_size=(7,7),strides=(2,2))(input)
+    pool1 = MaxPooling2D(pool_size=(3,3),strides=(2,2),padding="same")(conv1)
     def BuildModule(inputs,depth=1,filters=16):
 
         shortcut = inputs
         shortcut = Conv2D(filters,1,padding='same')(shortcut)
+        shortcut = Conv2D(filters,3,padding='same')(shortcut)
+        shortcut = Conv2D(filters*4,1,padding='same')(shortcut)
+        added = Add()()
         out=None
         for k in range(depth):
             
@@ -134,58 +130,27 @@ N      = 50000
 EPOCHS = 100
 BATCH  = 1000
 TRIALS = 10
-already = set()
-cols = ['depth1','depth2','filters','nodes','parameters','stopping','dropout','epochs',
-    'time (min)','train error','val error','test error']
-df = pd.DataFrame(np.zeros((TRIALS,len(cols))).fill(np.nan),columns=cols)
-for trial in range(TRIALS): 
-    print('trial = %d/%d' % (trial+1,TRIALS))
-    hp = GenHyperparameters()
-    while hp in already:
-    	hp = GenHyperparameters()
-    already.add(hp)
-    df.loc[trial,'depth1']   = hp.depth1
-    df.loc[trial,'depth2']   = hp.depth2
-    df.loc[trial,'filters']  = hp.filters
-    df.loc[trial,'nodes']    = hp.nodes
-    df.loc[trial,'stopping'] = hp.stopping 
-    df.loc[trial,'dropout']  = hp.dropout
-    df = df.sort_values('val error')
-    df.to_csv('CIFAR10_CNN2.csv',index=False)
+#already = set()
+hp = GenHyperparameters()
 
-    model = BuildModel(hp)
-    cb=TensorBoard(log_dir='Resnet', histogram_freq=0,  
-          write_graph=True, write_images=True)
-    model.compile(loss='categorical_crossentropy',optimizer='Adam',metrics=['accuracy'])
-    print(model.summary())
-    time_start = time.time()
-    hist = model.fit(x_train[:N,:],y_train[:N,:],
-        batch_size=BATCH,
-        epochs=EPOCHS,
-        validation_split=0.2,
-        #
-        callbacks=[EarlyStopping(patience=hp.stopping),cb]
-        )
-    time_stop = time.time()
-    time_elapsed = (time_stop - time_start)/60
-    train_err = 1 - hist.history['acc'][-1]
-    val_err = 1 - hist.history['val_acc'][-1]
-    test_acc = model.evaluate(x_test,y_test,batch_size=BATCH,verbose=0)
-    test_err = 1 - test_acc[1]
-    df.loc[trial,'parameters']  = model.count_params()
-    df.loc[trial,'epochs']      = hist.epoch[-1]
-    df.loc[trial,'time (min)']  = time_elapsed
-    df.loc[trial,'train error'] = train_err 
-    df.loc[trial,'val error']   = val_err 
-    df.loc[trial,'test error']  = test_err
-
-    df = df.sort_values('val error')
-    df.to_csv('CIFAR10_CNN2.csv',index=False)
-    print(df.head().round(2))
-    print()
-
-
-# In[ ]:
-
+model = BuildModel(hp)
+cb=TensorBoard(log_dir='Resnet', histogram_freq=0,  
+      write_graph=True, write_images=True)
+model.compile(loss='categorical_crossentropy',optimizer='Adam',metrics=['accuracy'])
+print(model.summary())
+time_start = time.time()
+hist = model.fit(x_train[:N,:],y_train[:N,:],
+    batch_size=BATCH,
+    epochs=EPOCHS,
+    validation_split=0.2,
+    #
+    callbacks=[EarlyStopping(patience=hp.stopping),cb]
+    )
+time_stop = time.time()
+time_elapsed = (time_stop - time_start)/60
+train_err = 1 - hist.history['acc'][-1]
+val_err = 1 - hist.history['val_acc'][-1]
+test_acc = model.evaluate(x_test,y_test,batch_size=BATCH,verbose=0)
+test_err = 1 - test_acc[1]
 
 
