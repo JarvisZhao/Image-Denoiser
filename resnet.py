@@ -16,6 +16,7 @@ from keras.layers import (
 )
 from keras.layers.convolutional import (
     Conv2D,
+    Conv2DTranspose,
     MaxPooling2D,
     AveragePooling2D
 )
@@ -81,16 +82,56 @@ def bottleneck_residual_unit(filter,is_first_block_of_first_layer=False):
     return f
 
 
+def bn_relu_deconv_block(filters,kernel_size,strides=(1,1),padding='same'):
+    def f(input):
+        input = BN()(input)
+        input = Activation('relu')(norm)
+        return Conv2Transpose(filters = filters,kernel_size=kernel_size,strides=strides,padding=padding)(input)
+    return f
+
+def de_normal_deresidual_unit(filter,is_first_block_of_first_layer=False):
+    def f(input):
+
+        shortcut = inputs
+        if is_first_block_of_first_layer:
+            conv1 = Conv2DTransposeTranspose(filters=filter,kernel_size=(3,3),strides=(1,1),padding='same' )(input)
+        else:
+            conv1 = bn_relu_deconv_block(filters=filter,kernel_size=(3,3))(input)
+        conv2 = bn_relu_deconv_block(filters = filter,kernel_size=(3,3))(conv1)
+        shortcut = Conv2DTranspose(filters=filter,kernel_size=(3,3))(shortcut)
+        added = Add()([conv2,shortcut])
+        return added
+    return f
+
+def de_bottleneck_residual_unit(filter,is_first_block_of_first_layer=False):
+    def f(input):
+        shortcut = input
+        if is_first_block_of_first_layer:
+            conv_1_1 = Conv2DTranspose(filters = filter,kernel_size=1,strides=(1,1),padding='same')(input)
+        else:
+            conv_1_1 = bn_relu_deconv_block(filters = filter,kernel_size=(1,1),strides=(1,1),padding='same')(input)
+        conv_3_3 =  bn_relu_deconv_block(filters = filter,kernel_size=(3,3))(conv_1_1)
+        res = bn_relu_deconv_block(filters=filter*4,kernel_size=(1,1))(conv_3_3)
+        shortcut = Conv2DTranspose(filters = filter*4,kernel_size=1)(shortcut)
+        added = Add()([res,shortcut])
+        return added
+    return f
+
+
+
+
 
 def BuildModel(input_shape,num_outputs,block,structure):
     input = Input(shape = input_shape)
     conv1 = Conv2D(filters=64, kernel_size=(7,7),strides=(2,2))(input)
     pool1 = MaxPooling2D(pool_size=(3,3),strides=(2,2),padding="same")(conv1)
-    
+    for n in structure:
+        for k in range(n):
+
 
     filters = hp.filters
     input_flag = True
-    inputs = Input(shape=(32,32,3))
+    
     out = inputs
     for k in np.arange(hp.depth1)+1:
         out = BuildModule(out,depth=hp.depth2,
