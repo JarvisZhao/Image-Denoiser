@@ -123,13 +123,11 @@ def BuildModel(input_shape,init_filters,blockfn,structure):
         for k in range(structure[n]):
             if not k==structure[n]-1:
                 if blockfn == 'basic':
-                    
                     block = normal_residual_unit(filter=filters,strides=(1,1),is_first_block_of_first_layer=(n==0 and k==0))(block)
                 elif blockfn == 'bottleneck':
                     block = bottleneck_residual_unit(filter=filters,strides=(1,1),is_first_block_of_first_layer=(n==0 and k==0))(block)
             else:
                 if blockfn == 'basic':
-                    
                     block = normal_residual_unit(filter=filters,strides=(2,2),is_first_block_of_first_layer=(n==0 and k==0))(block)
                 elif blockfn == 'bottleneck':
                     block = bottleneck_residual_unit(filter=filters,strides=(2,2),is_first_block_of_first_layer=(n==0 and k==0))(block)
