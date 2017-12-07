@@ -208,7 +208,7 @@ time_stop = time.time()
 time_elapsed = (time_stop - time_start)/60
 
 predicted = model.predict(noised)
-plt.imshow(predicted[0])
+np.savez('predict.npz',predicted=predicted)
 
 
 # train_err = 1 - hist.history['acc'][-1]
