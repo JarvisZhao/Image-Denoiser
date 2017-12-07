@@ -32,6 +32,13 @@ from keras.callbacks import EarlyStopping
 import os 
 
 
+## Run on server
+import tensorflow as tf         
+from keras import backend as K  # needed for mixing TensorFlow and Keras commands 
+config = tf.ConfigProto()
+config.gpu_options.per_process_gpu_memory_fraction = 0.2
+sess = tf.Session(config=config)
+K.set_session(sess)
 # In[4]:
 
 file = np.load('images.npz')
@@ -39,8 +46,7 @@ original = file['original']
 noised1 = file['noised-1']
 original = original[:886]
 # noised1 = noised1/255
-noised1 = noised1[:50]
-original = original[:50]
+
 original = original/255
 print('orignial ',original.shape)
 print('noised   ',noised1.shape)
@@ -176,7 +182,7 @@ def BuildModel(input_shape,init_filters,blockfn,structure):
 
 # In[14]:
 
-N      = 50
+N      = 886
 EPOCHS = 5
 BATCH  = 50
 TRIALS = 10
