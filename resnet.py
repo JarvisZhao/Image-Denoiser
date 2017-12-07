@@ -25,12 +25,23 @@ from keras.layers.normalization import BatchNormalization as BN
 from keras.regularizers import l2
 
 from keras.callbacks import TensorBoard
-
+import matplotlib.pyplot as plt 
+import matplotlib.image as mpimg
+from keras.optimizers import Adam
+from keras.callbacks import EarlyStopping 
+import os 
 
 
 # In[4]:
 
-  
+file = np.load('images.npz')
+original = file['original']
+noised1 = file['noised-1']
+original = original[:886]
+# noised1 = noised1/255
+original = original/255
+print('orignial ',original.shape)
+print('noised   ',noised1.shape)
 
 
 # In[13]:
@@ -151,7 +162,7 @@ def BuildModel(input_shape,init_filters,blockfn,structure):
     block = Conv2DTranspose(filters=3,kernel_size=1,strides=(2,2))(block)
     
     
-    block = Flatten()(block)
+    #block = Flatten()(block)
     # for k in f_c:
     #     block = Dense(k)(block)
     # block = Dense(384*384*3)(block)
@@ -163,28 +174,33 @@ def BuildModel(input_shape,init_filters,blockfn,structure):
 
 # In[14]:
 
-N      = 50000
-EPOCHS = 100
-BATCH  = 1000
+N      = 50
+EPOCHS = 5
+BATCH  = 50
 TRIALS = 10
 
 
 
-model = BuildModel(input_shape=[384,384,3],init_filters=64,blockfn='bottleneck',structure=[2,2,2,2])
+model = BuildModel(input_shape=[384,512,3],init_filters=64,blockfn='basic',structure=[2,2,2,2])
 cb=TensorBoard(log_dir='Resnet', histogram_freq=0,  
       write_graph=True, write_images=True)
-model.compile(loss='categorical_crossentropy',optimizer='Adam',metrics=['accuracy'])
+model.compile(loss='mean_squared_error',optimizer='Adam')
 print(model.summary())
-# time_start = time.time()
-# hist = model.fit(x_train[:N,:],y_train[:N,:],
-#     batch_size=BATCH,
-#     epochs=EPOCHS,
-#     validation_split=0.2,
-#     #
-#     callbacks=[EarlyStopping(patience=hp.stopping),cb]
-#     )
-# time_stop = time.time()
-# time_elapsed = (time_stop - time_start)/60
+time_start = time.time()
+hist = model.fit(noised1[:N,:],original[:N,:],
+    batch_size=BATCH,
+    epochs=EPOCHS,
+    validation_split=0.2,
+    #
+    callbacks=[EarlyStopping(patience=10),cb]
+    )
+time_stop = time.time()
+time_elapsed = (time_stop - time_start)/60
+
+predicted = model.predict(noised)
+plt.imshow(predicted[0])
+
+
 # train_err = 1 - hist.history['acc'][-1]
 # val_err = 1 - hist.history['val_acc'][-1]
 # test_acc = model.evaluate(x_test,y_test,batch_size=BATCH,verbose=0)
