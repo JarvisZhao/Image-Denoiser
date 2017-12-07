@@ -3,7 +3,7 @@
 
 # In[1]:
 
-
+import h5py
 import numpy as np
 import pandas as pd
 import time
@@ -39,6 +39,8 @@ original = file['original']
 noised1 = file['noised-1']
 original = original[:886]
 # noised1 = noised1/255
+noised1 = noised1[:50]
+original = original[:50]
 original = original/255
 print('orignial ',original.shape)
 print('noised   ',noised1.shape)
@@ -180,8 +182,8 @@ BATCH  = 50
 TRIALS = 10
 
 
-
-model = BuildModel(input_shape=[384,512,3],init_filters=64,blockfn='basic',structure=[2,2,2,2])
+structure = [2,2,2,2]
+model = BuildModel(input_shape=[384,512,3],init_filters=64,blockfn='basic',structure=structure)
 cb=TensorBoard(log_dir='Resnet', histogram_freq=0,  
       write_graph=True, write_images=True)
 model.compile(loss='mean_squared_error',optimizer='Adam')
@@ -194,6 +196,8 @@ hist = model.fit(noised1[:N,:],original[:N,:],
     #
     callbacks=[EarlyStopping(patience=10),cb]
     )
+name = str(structure)+'.h5'
+model.save_weights('models/'+name)
 time_stop = time.time()
 time_elapsed = (time_stop - time_start)/60
 
