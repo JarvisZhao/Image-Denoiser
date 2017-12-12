@@ -1,6 +1,12 @@
 
 # coding: utf-8
-
+## Run on server
+import tensorflow as tf         
+# from keras import backend as K  # needed for mixing TensorFlow and Keras commands 
+# config = tf.ConfigProto()
+# config.gpu_options.per_process_gpu_memory_fraction = 0.9
+# sess = tf.Session(config=config)
+# K.set_session(sess)
 # In[1]:
 
 import h5py
@@ -30,15 +36,8 @@ import matplotlib.image as mpimg
 from keras.optimizers import Adam
 from keras.callbacks import EarlyStopping 
 import os 
+from training_utils import multi_gpu_model
 
-
-## Run on server
-import tensorflow as tf         
-from keras import backend as K  # needed for mixing TensorFlow and Keras commands 
-config = tf.ConfigProto()
-config.gpu_options.per_process_gpu_memory_fraction = 0.2
-sess = tf.Session(config=config)
-K.set_session(sess)
 # In[4]:
 
 file = np.load('images.npz')
@@ -183,19 +182,21 @@ def BuildModel(input_shape,init_filters,blockfn,structure):
 # In[14]:
 
 N      = 886
-EPOCHS = 5
+EPOCHS = 10
 BATCH  = 50
 TRIALS = 10
 
 
 structure = [2,2,2,2]
 model = BuildModel(input_shape=[384,512,3],init_filters=64,blockfn='basic',structure=structure)
+multi_model = multi_gpu_model(model, gpus=8)
 cb=TensorBoard(log_dir='Resnet', histogram_freq=0,  
       write_graph=True, write_images=True)
-model.compile(loss='mean_squared_error',optimizer='Adam')
+multi_model.compile(loss='mean_squared_error',optimizer='Adam')
 print(model.summary())
 time_start = time.time()
-hist = model.fit(noised1[:N,:],original[:N,:],
+
+hist = multi_model.fit(noised1[:N,:],original[:N,:],
     batch_size=BATCH,
     epochs=EPOCHS,
     validation_split=0.2,
@@ -203,12 +204,12 @@ hist = model.fit(noised1[:N,:],original[:N,:],
     callbacks=[EarlyStopping(patience=10),cb]
     )
 name = str(structure)+'.h5'
-model.save_weights('models/'+name)
+multi_model.save_weights('models/'+name)
 time_stop = time.time()
 time_elapsed = (time_stop - time_start)/60
 
-predicted = model.predict(noised)
-np.savez('predict.npz',predicted=predicted)
+predicted = multi_model.predict(noised1)
+np.savez('predict.npz',predicted=predicted[:50])
 
 
 # train_err = 1 - hist.history['acc'][-1]
