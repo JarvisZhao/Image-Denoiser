@@ -1,7 +1,7 @@
 
 # coding: utf-8
 ## Run on server
-import tensorflow as tf         
+#import tensorflow as tf         
 # from keras import backend as K  # needed for mixing TensorFlow and Keras commands 
 # config = tf.ConfigProto()
 # config.gpu_options.per_process_gpu_memory_fraction = 0.9
@@ -188,7 +188,9 @@ TRIALS = 10
 
 
 structure = [2,2,2,2]
+name = str(structure)+'.h5'
 model = BuildModel(input_shape=[384,512,3],init_filters=64,blockfn='basic',structure=structure)
+model.save(name)
 multi_model = multi_gpu_model(model, gpus=8)
 cb=TensorBoard(log_dir='Resnet', histogram_freq=0,  
       write_graph=True, write_images=True)
@@ -203,14 +205,21 @@ hist = multi_model.fit(noised1[:N,:],original[:N,:],
     #
     callbacks=[EarlyStopping(patience=10),cb]
     )
-name = str(structure)+'.h5'
-multi_model.save_weights('models/'+name)
+print('Finish Trainging')
+
 time_stop = time.time()
 time_elapsed = (time_stop - time_start)/60
+print('Trainging time: ', time_elapsed)
+predicted = multi_model.predict(noised1[:100])
+np.savez('predict.npz',predict = predicted)
 
-predicted = multi_model.predict(noised1)
-np.savez('predict.npz',predicted=predicted[:50])
+print('Finish saving predictions')
 
+multi_model.save_weights('models/'+'weights_'+name)
+print('Finish saving weights')
+# h5 = h5py.File('results/predict.h5','w')
+# h5.create_dataset('predict',data = predicted)
+# h5.close()
 
 # train_err = 1 - hist.history['acc'][-1]
 # val_err = 1 - hist.history['val_acc'][-1]
