@@ -47,7 +47,8 @@ original = original[:886]
 # noised1 = noised1/255
 
 original = original/255
-original_gray = original[]
+original_gray = original[:,:,:,1:2]
+noised_gray = noised1[:,:,:,1:2]
 print('orignial ',original.shape)
 print('noised   ',noised1.shape)
 
@@ -167,7 +168,7 @@ def BuildModel(input_shape,init_filters,blockfn,structure):
         #block = Conv2DTranspose(filters=filters,kernel_size=3,strides=(2,2))(block)
         filters//=2
     block = bn_relu_deconv_block(filters=filters,kernel_size=2,strides=(2,2))(block)
-    block = Conv2DTranspose(filters=3,kernel_size=1,strides=(2,2))(block)
+    block = Conv2DTranspose(filters=1,kernel_size=1,strides=(2,2))(block)
     
     
     #block = Flatten()(block)
@@ -183,23 +184,23 @@ def BuildModel(input_shape,init_filters,blockfn,structure):
 # In[14]:
 
 N      = 886
-EPOCHS = 10
+EPOCHS = 100
 BATCH  = 50
 TRIALS = 10
 
 
 structure = [2,2,2,2]
-name = str(structure)+'.h5'
-model = BuildModel(input_shape=[384,512,3],init_filters=64,blockfn='basic',structure=structure)
+name = 'gray_'+str(structure)+'.h5'
+model = BuildModel(input_shape=[384,512,1],init_filters=64,blockfn='basic',structure=structure)
 model.save(name)
 multi_model = multi_gpu_model(model, gpus=8)
 cb=TensorBoard(log_dir='Resnet', histogram_freq=0,  
       write_graph=True, write_images=True)
-multi_model.compile(loss='mean_squared_error',optimizer='Adam')
+multi_model.compile(loss='mean_absolute_error',optimizer='Adam')
 print(model.summary())
 time_start = time.time()
 
-hist = multi_model.fit(noised1[:N,:],original[:N,:],
+hist = multi_model.fit(noised_gray[:N,:],original_gray[:N,:],
     batch_size=BATCH,
     epochs=EPOCHS,
     validation_split=0.2,
@@ -211,8 +212,8 @@ print('Finish Trainging')
 time_stop = time.time()
 time_elapsed = (time_stop - time_start)/60
 print('Trainging time: ', time_elapsed)
-predicted = multi_model.predict(noised1[:100])
-np.savez('predict.npz',predict = predicted)
+predicted = multi_model.predict(noised_gray[:100])
+np.savez('gray'+'predict.npz',predict = predicted)
 
 print('Finish saving predictions')
 
