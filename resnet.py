@@ -18,7 +18,8 @@ from keras.layers import (
     Input,
     Activation,
     Dense,
-    Flatten
+    Flatten,
+    Reshape
 )
 from keras.layers.convolutional import (
     Conv2D,
@@ -40,15 +41,15 @@ from training_utils import multi_gpu_model
 
 # In[4]:
 
-file = np.load('images.npz')
-original = file['original']
-noised1 = file['noised-1']
-original = original[:886]
-# noised1 = noised1/255
+# file = np.load('images.npz')
+# original = file['original']
+# noised1 = file['noised-1']
+# original = original[:886]
+# # noised1 = noised1/255
 
-original = original/255
-print('orignial ',original.shape)
-print('noised   ',noised1.shape)
+# original = original/255
+# print('orignial ',original.shape)
+# print('noised   ',noised1.shape)
 
 
 # In[13]:
@@ -166,14 +167,12 @@ def BuildModel(input_shape,init_filters,blockfn,structure):
         #block = Conv2DTranspose(filters=filters,kernel_size=3,strides=(2,2))(block)
         filters//=2
     block = bn_relu_deconv_block(filters=filters,kernel_size=2,strides=(2,2))(block)
-    block = Conv2DTranspose(filters=3,kernel_size=1,strides=(2,2))(block)
+    #block = Conv2DTranspose(filters=filters*2,kernel_size=1,strides=(2,2))(block)
+    block = Conv2D(filters=3,kernel_size=1,strides=(2,2))(block)
+    # block = Flatten()(block)
+    # block = Dense(384*512*3)(block)
+    # block = Reshape((384,512,3))(block)
     
-    
-    #block = Flatten()(block)
-    # for k in f_c:
-    #     block = Dense(k)(block)
-    # block = Dense(384*384*3)(block)
-    # < code ommitted >
     model = Model(inputs=input,outputs=block)
     
     return model
@@ -189,7 +188,7 @@ TRIALS = 10
 
 structure = [2,2,2,2]
 name = str(structure)+'.h5'
-model = BuildModel(input_shape=[384,512,3],init_filters=64,blockfn='basic',structure=structure)
+model = BuildModel(input_shape=[384,512,3],init_filters=16,blockfn='basic',structure=structure)
 model.save(name)
 multi_model = multi_gpu_model(model, gpus=8)
 cb=TensorBoard(log_dir='Resnet', histogram_freq=0,  
@@ -198,25 +197,25 @@ multi_model.compile(loss='mean_squared_error',optimizer='Adam')
 print(model.summary())
 time_start = time.time()
 
-hist = multi_model.fit(noised1[:N,:],original[:N,:],
-    batch_size=BATCH,
-    epochs=EPOCHS,
-    validation_split=0.2,
-    #
-    callbacks=[EarlyStopping(patience=10),cb]
-    )
-print('Finish Trainging')
+# hist = multi_model.fit(noised1[:N,:],original[:N,:],
+#     batch_size=BATCH,
+#     epochs=EPOCHS,
+#     validation_split=0.2,
+#     #
+#     callbacks=[EarlyStopping(patience=10),cb]
+#     )
+# print('Finish Trainging')
 
-time_stop = time.time()
-time_elapsed = (time_stop - time_start)/60
-print('Trainging time: ', time_elapsed)
-predicted = multi_model.predict(noised1[:100])
-np.savez('predict.npz',predict = predicted)
+# time_stop = time.time()
+# time_elapsed = (time_stop - time_start)/60
+# print('Trainging time: ', time_elapsed)
+# predicted = multi_model.predict(noised1[:100])
+# np.savez('predict.npz',predict = predicted)
 
-print('Finish saving predictions')
+# print('Finish saving predictions')
 
-multi_model.save_weights('models/'+'weights_'+name)
-print('Finish saving weights')
+# multi_model.save_weights('models/'+'weights_'+name)
+# print('Finish saving weights')
 # h5 = h5py.File('results/predict.h5','w')
 # h5.create_dataset('predict',data = predicted)
 # h5.close()
