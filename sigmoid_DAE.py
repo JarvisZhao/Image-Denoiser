@@ -1,8 +1,4 @@
-
-# coding: utf-8
-
-# In[1]:
-
+# This file is training the simple model with sigmoid at the end of the model and relu.
 
 import h5py
 import numpy as np

@@ -29,7 +29,7 @@ import matplotlib.pyplot as plt
 import h5py
 
 from keras.callbacks import (TensorBoard, EarlyStopping)
-get_ipython().magic('matplotlib inline')
+
 
 
 # In[2]:
@@ -401,7 +401,7 @@ class ResnetBuilder(object):
 # In[78]:
 
 
-model = ResnetBuilder.build((3,96,128), 1,basic_block,deconv_basic_block,[2, 2, 2, 2])
+model = ResnetBuilder.build((3,384,512), 1,basic_block,deconv_basic_block,[2, 2, 2, 2])
 
 
 # In[79]:

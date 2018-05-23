@@ -1,13 +1,4 @@
-
-# coding: utf-8
-## Run on server
-#import tensorflow as tf         
-# from keras import backend as K  # needed for mixing TensorFlow and Keras commands 
-# config = tf.ConfigProto()
-# config.gpu_options.per_process_gpu_memory_fraction = 0.9
-# sess = tf.Session(config=config)
-# K.set_session(sess)
-# In[1]:
+# This file implement a residual denoising autoencoder.
 
 import h5py
 import numpy as np

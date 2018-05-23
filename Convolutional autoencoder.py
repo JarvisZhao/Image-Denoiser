@@ -1,7 +1,4 @@
-
-# coding: utf-8
-
-# In[1]:
+# This file is training the simple model with ranged relu and use preactivation technique.
 
 
 import h5py
