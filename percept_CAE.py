@@ -1,7 +1,4 @@
-
-# coding: utf-8
-
-# In[1]:
+# This file uses perceptual loss but use simple model which uses range relu to generate outputs
 
 
 import h5py
