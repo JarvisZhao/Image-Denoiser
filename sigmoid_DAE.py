@@ -58,36 +58,57 @@ def buildData(n):
         original = hf['original'][:]
         original1 = original/255
         #if type(n) !=list:
-        for k in range(n):
-            if k ==0:
-                target = original1
-            else:
-                target = np.concatenate((target,original1),axis = 0)
-            #print('target',target.shape)
-        
-        k = 0
-        for key in hf.keys():
-            if(k==n):
-                break
-            if not key in ['original','features']:
-                
-                noised1 = hf[key][:]
-                if(k==0):
-                    noised =noised1
+        if type(n) == list:
+            for i,k in enumerate(n):
+                if(i==0):
+                    target = original1
                 else:
-                    noised = np.concatenate((noised,noised1),axis=0)
-                k+=1
-                #print(noised)
+                    target = np.concatenate((target,original1),axis = 0)
+            k = 1
+            c = 1
+            for key in hf.keys():
+                if not key in ['original','features']:
+                    if str(k) in list(key) and k in n:
+                        noised1 = hf[key][:]
+                        print(k,key)
+                        if(c==1):
+                            noised =noised1
+                        else:
+                            noised = np.concatenate((noised,noised1),axis=0)
+                        c+=1
+                    k+=1
+            return target, noised
+        else:
+            for k in range(n):
+                if k ==0:
+                    target = original1
+                else:
+                    target = np.concatenate((target,original1),axis = 0)
+                #print('target',target.shape)
+        
+            k = 0
+            for key in hf.keys():
+                if(k==n):
+                    break
+                if not key in ['original','features']:
+                    
+                    noised1 = hf[key][:]
+                    if(k==0):
+                        noised =noised1
+                    else:
+                        noised = np.concatenate((noised,noised1),axis=0)
+                    k+=1
+                    #print(noised)
 #     with h5py.File('features.h5', 'r') as hf:
 #         target = hf['features'][:n*886]
-    return target,noised
+            return target,noised
 
 
 # In[6]:
 
 
 
-N      = 1
+N      = [4]
 EPOCHS = 1000
 BATCH  = 64
 X = 700
@@ -107,20 +128,20 @@ noised[:X,:].shape
 input_img = Input(shape=(384,512,3))
 
 x = BN()(input_img)
-x = Activation(range_relu)(x)
+x = Activation('relu')(x)
 x = Conv2D(16, 3,strides=(2,2),padding='same')(x) #nb_filter, nb_row, nb_col
 x = BN()(x)
-x = Activation(range_relu)(x)
+x = Activation('relu')(x)
 x = Conv2D(64, 3,strides=(2,2),padding='same')(x)
 x = BN()(x)
-x = Activation(range_relu)(x)
+x = Activation('relu')(x)
 x = Conv2D(128, 3,strides=(2,2),padding='same')(x)
 x = BN()(x)
-x = Activation(range_relu)(x)
+x = Activation('relu')(x)
 x = Conv2DTranspose(128, 3,padding='same')(x)
 x = UpSampling2D((2,2))(x)
 x = BN()(x)
-x = Activation(range_relu)(x)
+x = Activation('relu')(x)
 x = Conv2DTranspose(64, 3,padding='same')(x)
 x = UpSampling2D((2,2))(x)
 #x = UpSampling2D((2,2))(x)
@@ -128,18 +149,18 @@ x = UpSampling2D((2,2))(x)
 # then the shape of 'decoded' will be 32 x 32, instead of 28 x 28
 # x = Convolution2D(16, 3, 3, activation='relu', border_mode='same')(x) 
 x = BN()(x)
-x = Activation(range_relu)(x)
+x = Activation('relu')(x)
 x = Conv2DTranspose(16, 3,padding='same')(x) 
 x = UpSampling2D((2,2))(x)
 x = BN()(x)
-x = Activation(range_relu)(x)
+x = Activation('relu')(x)
 x = Conv2D(3, 5, padding='same')(x)
 x = BN()(x)
-x = Activation(range_relu)(x)
+x = Activation('sigmoid')(x)
 #x = relu()(x)
 
 model = Model(input_img, x)
-gpus = [0,1,3,4,5,6,7]
+gpus = [0,1,2,3,4,5,6,7]
 multi_model = multi_gpu_model(model,gpus= gpus)
 
 
@@ -150,12 +171,6 @@ multi_model = multi_gpu_model(model,gpus= gpus)
 cb=TensorBoard(log_dir='Resnet', histogram_freq=0,  
       write_graph=True, write_images=True)
 multi_model.compile(loss='mse',optimizer='Adam')
-print(model.summary())
-
-
-# In[ ]:
-
-
 hist = multi_model.fit(noised[:X,:],target[:X,:],
     batch_size=BATCH,
     epochs=EPOCHS,
@@ -164,22 +179,6 @@ hist = multi_model.fit(noised[:X,:],target[:X,:],
     callbacks=[cb,EarlyStopping(patience=100)],
     )
 print('Finish Trainging')
+print(model.summary())
 
-
-# In[ ]:
-
-
-predicted = multi_model.predict(noised[X:])
-
-
-# In[18]:
-
-
-multi_model.save_weights('models/'+'preact_very_very_good.h5')
-
-
-# In[9]:
-
-
-# multi_model.load_weights('models/'+'preact_very_very_good.h5')
-
+multi_model.save_weights('models/'+'sigmoid_very_very_good.h5')
